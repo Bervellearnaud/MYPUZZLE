@@ -41,8 +41,13 @@ body{
   display:flex;
   flex-direction:column;
   gap:12px;
-  padding:14px 16px;
+  /* Marge adaptée aux encoches / barres système des mobiles */
+  padding:max(14px, env(safe-area-inset-top))
+          max(16px, env(safe-area-inset-right))
+          max(14px, env(safe-area-inset-bottom))
+          max(16px, env(safe-area-inset-left));
   overflow:hidden;                    /* l'app occupe exactement l'écran */
+  overscroll-behavior:none;           /* pas de rebond / pull-to-refresh */
   -webkit-tap-highlight-color:transparent;
 }
 
@@ -282,6 +287,8 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
 
 .modal{
   width:min(460px,94vw);
+  max-height:92dvh;                   /* ne dépasse jamais l'écran (paysage) */
+  overflow-y:auto;
   background:linear-gradient(160deg, rgba(34,40,74,.96), rgba(16,20,40,.98));
   border:1px solid rgba(255,255,255,.15);
   border-radius:24px;
@@ -312,7 +319,9 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
 /* Aperçu plein écran de l'image cible */
 #imgOverlay{ cursor:zoom-out; background:rgba(6,9,20,.86); }
 #imgFull{
-  max-width:min(94vw,1100px); max-height:88vh;
+  max-width:min(94vw,1100px);
+  max-height:88vh;
+  max-height:88dvh;
   border-radius:18px;
   box-shadow:0 30px 80px rgba(0,0,0,.7);
   transform:scale(.96); transition:transform .3s ease;
@@ -344,28 +353,92 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
 /* ============================================================
    7. RESPONSIVE
    ============================================================ */
+
+/* ---- Tablette / mobile (≤ 880 px) : réserves sous le plateau ---- */
 @media (max-width:880px){
-  /* Tablette / mobile : réserves sous le plateau */
   #playArea{ flex-direction:column; }
   #tray{ flex:0 0 auto; height:31vh; }
   .toolbar{ justify-content:center; }
 }
+
+/* ---- Petit écran (≤ 640 px) : chaque barre d'outils = UNE ligne scrollable
+        (au lieu de 2-3 lignes de boutons qui bouffent la hauteur du plateau) ---- */
 @media (max-width:640px){
-  body{ padding:10px 10px; gap:9px; }
+  body{
+    padding:max(10px, env(safe-area-inset-top))
+            max(10px, env(safe-area-inset-right))
+            max(10px, env(safe-area-inset-bottom))
+            max(10px, env(safe-area-inset-left));
+    gap:9px;
+  }
   .brand-txt{ display:none; }
   .brand{ font-size:1.15rem; }
-  .chip{ font-size:.78rem; padding:6px 10px; }
+  .chip{ font-size:.78rem; padding:6px 10px; gap:5px; }
   .btn{ padding:8px 10px; font-size:.8rem; }
-  .toolbar{ padding:8px; }
-  /* Les niveaux défilent horizontalement plutôt que de casser la mise en page */
-  .levels{ flex-wrap:nowrap; overflow-x:auto; max-width:100%; padding-bottom:3px; }
+  .toolbar{ padding:8px; row-gap:8px; }
+
+  /* Actions et niveaux défilent horizontalement, sans barre de défilement visible */
+  .toolbar-group,
+  .levels{
+    flex-wrap:nowrap;
+    width:100%; min-width:0;
+    overflow-x:auto;
+    overscroll-behavior-x:contain;     /* le scroll n'affecte pas la page */
+    scrollbar-width:none; -ms-overflow-style:none;
+    padding-bottom:2px;
+  }
+  .toolbar-group::-webkit-scrollbar,
+  .levels::-webkit-scrollbar{ display:none; }
+
   .modal-stats{ grid-template-columns:1fr; }
   .modal-stats div{ flex-direction:row; justify-content:space-between; align-items:center; padding:9px 12px; }
 }
+
+/* ---- Très petits écrans (≤ 400 px) : on compacte encore ---- */
+@media (max-width:400px){
+  .chip-lbl{ display:none; }           /* « coups » : l'icône 🎯 suffit */
+  .btn{ padding:8px 9px; gap:5px; }
+  .lvl{ padding:7px 10px; font-size:.78rem; }
+}
+
+/* ---- Cible tactile : zones de clic ≥ 44 px (ergonomie doigt) ---- */
+@media (pointer:coarse){
+  .btn{ min-height:44px; }
+  .lvl{ min-height:40px; padding:9px 14px; }
+}
+
+/* ---- Écran bas (paysage mobile…) : on compacre ---- */
 @media (max-height:560px){
-  /* Paysage très bas : compacter */
   .tray-head{ padding:6px 12px; }
   #tray{ height:27vh; }
+}
+
+/* ---- Très bas (≤ 480 px de haut) : TOUT tient sur une ligne ---- */
+@media (max-height:480px){
+  body{ gap:7px; padding-top:max(7px, env(safe-area-inset-top)); padding-bottom:max(7px, env(safe-area-inset-bottom)); }
+  .topbar{ gap:6px; }
+  .brand{ font-size:1rem; }
+  .chip{ padding:4px 8px; font-size:.72rem; }
+  .btn{ padding:7px 9px; font-size:.78rem; min-height:36px; }
+  .lvl{ padding:7px 11px; font-size:.78rem; min-height:34px; }
+
+  /* La barre d'outils entière défile horizontalement sur une seule ligne */
+  .toolbar{
+    flex-wrap:nowrap;
+    gap:8px; padding:7px;
+    overflow-x:auto;
+    overscroll-behavior-x:contain;
+    scrollbar-width:none;
+  }
+  .toolbar::-webkit-scrollbar{ display:none; }
+  .toolbar-group,
+  .levels{ flex:0 0 auto; width:auto; min-width:0; overflow:visible; padding-bottom:0; flex-wrap:nowrap; }
+
+  .tray-head{ padding:4px 10px; font-size:.7rem; }
+  #tray{ height:24vh; }
+  .modal{ padding:18px 16px; }
+  .modal-emoji{ font-size:2.4rem; }
+  .modal h2{ font-size:1.2rem; }
 }
 
 /* Accessibilité : réduire les animations */
@@ -389,7 +462,7 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
   </div>
   <div class="stats" role="status" aria-live="polite">
     <div class="chip" title="Temps écoulé">⏱ <b id="timeVal">00:00</b></div>
-    <div class="chip" title="Nombre de pièces aimantées">🎯 <b id="movesVal">0</b>&nbsp;coups</div>
+    <div class="chip" title="Nombre de pièces aimantées">🎯 <b id="movesVal">0</b>&nbsp;<span class="chip-lbl">coups</span></div>
     <div class="chip" title="Pièces bien placées">✅ <b id="placedVal">0</b>/<span id="totalVal">9</span></div>
   </div>
 </header>
