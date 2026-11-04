@@ -244,9 +244,16 @@ body{
 /* La "peau" = visuel de la pièce (image découpée + rotation décorative) */
 .piece .skin{
   position:absolute; inset:0;
+  /* L'image est déclarée UNE SEULE fois sur #playArea (--puzzle-img) et
+     héritée : on n'écrit JAMAIS la data-URL dans le style de chaque pièce
+     (1296 × ~100 Ko = plusieurs centaines de Mo → plantage du navigateur). */
+  background-image:var(--puzzle-img,none);
   background-repeat:no-repeat;
   border-radius:3px;
-  box-shadow:0 2px 6px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.22);
+  /* Contour léger : bien moins cher à peindre qu'une ombre portée */
+  outline:1px solid rgba(255,255,255,.16);
+  outline-offset:-1px;
+  box-shadow:0 2px 6px rgba(0,0,0,.45);
   transform:rotate(var(--rot,0deg));
   transition:transform .35s cubic-bezier(.2,.85,.25,1.04), box-shadow .2s ease, filter .2s ease;
 }
@@ -257,12 +264,16 @@ body{
   box-shadow:0 0 0 2px var(--accent2), 0 0 20px rgba(34,211,238,.75), 0 2px 6px rgba(0,0,0,.45);
 }
 .piece.is-placed .skin{
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14), 0 1px 3px rgba(0,0,0,.3);
+  box-shadow:0 1px 3px rgba(0,0,0,.3);
 }
 .piece.dragging .skin{
   transform:rotate(var(--rot,0deg)) scale(1.07);
   box-shadow:0 16px 32px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.32);
 }
+/* Grilles denses (≥ 100 pièces : 12×12, 36×36) : plus d'ombres par pièce.
+   1296 box-shadow repeintes à chaque scroll = lag assuré. Le contour suffit. */
+#playArea.dense .piece .skin,
+#playArea.dense .piece.is-placed .skin{ box-shadow:none; }
 
 /* Couche fixe où vivent les pièces pendant un glissement */
 #dragLayer{
@@ -615,6 +626,8 @@ const state = {
   boardSize: 0,
   ps: 0,               // taille d'une pièce (pixel)
   trayPad: TRAY_PAD_MIN,
+  builtGrid: null,     // grille du DOM construit (buildStructure)
+  builtURL: null,      // image du DOM construit
 };
 
 let drag = null;       // informations du glissement en cours
@@ -854,8 +867,9 @@ function readImageFile(file){
       const img = new Image();
       img.onerror = () => reject(new Error('décodage'));
       img.onload = () => {
-        // Réduction à 1600 px max : garde-fou mémoire / performances (36×36 !)
-        const MAX = 1600;
+        // Réduction adaptée au niveau : 1024 px pour les grosses grilles
+        // (12×12 et plus), 1600 px sinon → mémoire / peinture maîtrisées.
+        const MAX = state.grid >= 12 ? 1024 : 1600;
         let w = img.naturalWidth, h = img.naturalHeight;
         const scale = Math.min(1, MAX / Math.max(w, h));
         w = Math.max(1, Math.round(w * scale));
@@ -900,14 +914,17 @@ function computeSizes(){
   const grid = state.grid;
   const rowLayout = window.innerWidth > 880;   // réserves à droite ?
 
-  /* Ajustement de la largeur des réserves : on veut ~2-4 colonnes de pièces
-     selon le niveau, sans écraser le plateau. (2 passes pour converger) */
+  /* Largeur des réserves : calculée à partir de #playArea, dont la taille
+     ne dépend PAS des réserves → AUCUNE boucle de rétroaction avec le
+     ResizeObserver (l'ancien calcul partait de #boardArea, qui dépend de
+     cette même largeur : cela déclenchait des reconstructions en cascade). */
   if (rowLayout){
-    const area0 = boardArea.getBoundingClientRect();
-    const est = pickBoardSize(Math.min(area0.width, area0.height) - 10, grid);
+    const pa = playArea.getBoundingClientRect();
+    const est = pickBoardSize(Math.min(pa.width * .68, pa.height) - 10, grid);
     const pad = Math.max(TRAY_PAD_MIN, est.ps * .14);
     const wantCols = grid <= 4 ? Math.min(grid, 3) : (grid <= 9 ? 3 : 4);
-    const want = clamp(wantCols * est.ps + pad * 2 + 46, 260, 560);
+    const maxBasis = clamp(pa.width * .45, 240, 560);
+    const want = clamp(wantCols * est.ps + pad * 2 + 46, 260, maxBasis);
     const cur = parseFloat(getComputedStyle(tray).getPropertyValue('--tray-basis')) || 340;
     if (Math.abs(cur - want) >= 10) tray.style.setProperty('--tray-basis', Math.round(want) + 'px');
   } else {
@@ -933,6 +950,11 @@ function render(fresh = false){
 
   if (fresh){
     const total = state.grid * state.grid;
+    // Retire l'éventuelle sélection / indice de la partie précédente
+    if (state.selectedId != null && state.pieces[state.selectedId]){
+      state.pieces[state.selectedId].el.classList.remove('selected');
+    }
+    setHint(null);
     state.trayOrder  = shuffle(Array.from({ length: total }, (_, i) => i));
     state.placed     = new Set();
     state.moves      = 0;
@@ -945,86 +967,139 @@ function render(fresh = false){
   }
 
   computeSizes();
-  const { grid, ps } = state;
+
+  /* Reconstruction des DOM UNIQUEMENT si la structure a changé
+     (nouvelle grille ou nouvelle image). Un simple redimensionnement
+     se contente de repositionner les éléments existants : ~4000 nœuds
+     recréés à chaque resize = gel multi-secondes (ancien comportement). */
+  if (state.builtGrid !== state.grid || state.builtURL !== state.imgURL){
+    buildStructure();
+  }
+  layoutAll();
+}
+
+/**
+ * Crée une fois pour toutes les emplacements et les pièces de la grille
+ * courante. Coût unique (grille / image), pas de duplication de l'image.
+ */
+function buildStructure(){
+  const { grid } = state;
   const total = grid * grid;
+  state.builtGrid = grid;
+  state.builtURL  = state.imgURL;
+
+  // L'image cible : une SEULE déclaration CSS partagée par toutes les pièces
+  playArea.style.setProperty('--puzzle-img', 'url("' + state.imgURL + '")');
 
   /* --- Emplacements vides --- */
   slotsEl.style.gridTemplateColumns = 'repeat(' + grid + ',1fr)';
-  slotsEl.innerHTML = '';
-  const frag = document.createDocumentFragment();
+  const sfrag = document.createDocumentFragment();
   for (let i = 0; i < total; i++){
     const s = document.createElement('div');
     s.className = 'slot';
     s.dataset.id = i;
-    frag.appendChild(s);
+    sfrag.appendChild(s);
   }
-  slotsEl.appendChild(frag);
+  slotsEl.replaceChildren(sfrag);
   state.slotEls = Array.from(slotsEl.children);
   hintSlot = null;
 
   /* --- Pièces --- */
   boardEl.querySelectorAll('.piece').forEach(el => el.remove());
-  trayContent.innerHTML = '';
-
-  const cols = trayCols();
-  const rows = Math.ceil(total / cols);
-  const pad  = state.trayPad;
-  trayContent.style.height = (rows * ps + pad * 2) + 'px';
-
-  // Le jitter (décalage + rotation) n'existe que sur les petites grilles,
-  // pour ne pas transformer les réserves en pagaille sur un 36×36.
-  const jitter = grid <= 6;
-
+  const pfrag = document.createDocumentFragment();
   state.pieces = new Array(total);
 
-  state.trayOrder.forEach((pid, idx) => {
+  // Le jitter (décalage + rotation) n'existe que sur les petites grilles.
+  // Il est stocké en fraction pour survivre aux redimensionnements.
+  const jitter = grid <= 6;
+
+  for (let pid = 0; pid < total; pid++){
     const c = pid % grid;
     const r = Math.floor(pid / grid);
 
     const el = document.createElement('div');
     el.className = 'piece';
     el.dataset.id = pid;
-    el.style.width  = ps + 'px';
-    el.style.height = ps + 'px';
 
     const skin = document.createElement('div');
     skin.className = 'skin';
-    skin.style.backgroundImage    = 'url("' + state.imgURL + '")';
+    // Pas d'inline background-image : var(--puzzle-img) héritée (voir CSS)
     skin.style.backgroundSize     = (grid * 100) + '% ' + (grid * 100) + '%';
     skin.style.backgroundPosition = (grid > 1 ? (c / (grid - 1)) * 100 : 0) + '% ' +
                                     (grid > 1 ? (r / (grid - 1)) * 100 : 0) + '%';
     el.appendChild(skin);
 
-    const jx  = jitter ? (Math.random() - .5) * ps * .2  : 0;
-    const jy  = jitter ? (Math.random() - .5) * ps * .2  : 0;
-    const rot = jitter ? (Math.random() - .5) * 14       : 0;
-
-    const piece = {
+    state.pieces[pid] = {
       id: pid, c, r, el, skin,
-      homeX: pad + (idx % cols) * ps + jx,
-      homeY: pad + Math.floor(idx / cols) * ps + jy,
-      homeRot: rot,
-      placed: state.placed.has(pid),
+      jx: jitter ? (Math.random() - .5) * .2 : 0,
+      jy: jitter ? (Math.random() - .5) * .2 : 0,
+      jr: jitter ? (Math.random() - .5) * 14 : 0,
+      homeX: 0, homeY: 0, homeRot: 0,
+      placed: false,
     };
-    state.pieces[pid] = piece;
-    skin.style.setProperty('--rot', rot + 'deg');
+    pfrag.appendChild(el);
+  }
+  trayContent.replaceChildren(pfrag);
+}
 
-    if (piece.placed){
-      boardEl.appendChild(el);
-      moveTo(el, c * ps, r * ps);
-      el.classList.add('is-placed');
-      skin.style.setProperty('--rot', '0deg');
-    } else {
-      trayContent.appendChild(el);
-      moveTo(el, piece.homeX, piece.homeY);
-    }
+/**
+ * Repositionne / redimensionne les éléments existants (léger).
+ * Appelé à chaque rendu, y compris après un redimensionnement de fenêtre.
+ */
+function layoutAll(){
+  const { grid, ps } = state;
+  const total = grid * grid;
+
+  // Zones denses : plus d'ombre par pièce (gain de peinture majeur)
+  playArea.classList.toggle('dense', grid >= 10);
+
+  const cols = trayCols();
+  const rows = Math.ceil(total / cols);
+  const pad  = state.trayPad;
+  trayContent.style.height = (rows * ps + pad * 2) + 'px';
+
+  // Positions « maison » dans les réserves (toutes pièces, trous compris
+  // : une pièce placée laisse un emplacement vide plutôt que de décaler les autres)
+  state.trayOrder.forEach((pid, idx) => {
+    const p = state.pieces[pid];
+    p.homeX = pad + (idx % cols) * ps + p.jx * ps;
+    p.homeY = pad + Math.floor(idx / cols) * ps + p.jy * ps;
+    p.homeRot = p.jr;
   });
 
+  for (let pid = 0; pid < total; pid++){
+    const p = state.pieces[pid];
+    p.placed = state.placed.has(pid);
+    p.el.style.width  = ps + 'px';
+    p.el.style.height = ps + 'px';
+
+    // Change de parent uniquement si nécessaire (plateau ↔ réserves)
+    const parent = p.placed ? boardEl : trayContent;
+    if (p.el.parentElement !== parent) parent.appendChild(p.el);
+
+    if (p.placed){
+      moveTo(p.el, p.c * ps, p.r * ps);
+      p.skin.style.setProperty('--rot', '0deg');
+      p.el.classList.add('is-placed');
+    } else {
+      moveTo(p.el, p.homeX, p.homeY);
+      p.skin.style.setProperty('--rot', p.homeRot + 'deg');
+      p.el.classList.remove('is-placed');
+    }
+  }
+
   // Restaure l'éventuelle sélection après un re-rendu
-  if (state.selectedId != null && !state.placed.has(state.selectedId)){
+  if (state.selectedId != null){
     const p = state.pieces[state.selectedId];
-    if (p) p.el.classList.add('selected');
-    setHint(state.pieces[state.selectedId]);
+    if (p && !p.placed){
+      p.el.classList.add('selected');
+      setHint(p);
+    } else {
+      state.selectedId = null;
+      setHint(null);
+    }
+  } else {
+    setHint(null);
   }
 
   updateHUD();
@@ -1308,8 +1383,12 @@ function onDragUp(){
 /** Annule proprement un glissement (re-rendu, changement de fenêtre…) */
 function cancelDrag(){
   if (!drag) return;
+  const d = drag;
   cleanupDragListeners();
   drag = null;
+  // Remet l'état visuel de la pièce : layoutAll la repositionnera ensuite
+  d.el.classList.remove('dragging');
+  d.el.style.transition = '';
 }
 
 /** Perte de focus de la fenêtre pendant un glissement → on repose la pièce */
@@ -1469,18 +1548,15 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-/* --- Redimensionnement (responsive) : on repositionne tout en gardant l'avancement --- */
+/* --- Redimensionnement (responsive) : repositionnement léger, DOM conservé ---
+   render(false) ne recrée plus les éléments : computeSizes() est sans
+   rétroaction (voir plus haut), donc le ResizeObserver ne déclenche pas
+   de reconstruction en cascade. */
 let resizeTimer = null;
-let lastSig = '';
 function scheduleRelayout(){
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
-    if (drag) return;                       // pas de re-rendu en plein glissement
-    const r = boardArea.getBoundingClientRect();
-    const sig = Math.round(r.width) + '|' + Math.round(r.height) + '|' +
-                state.grid + '|' + state.imgURL;
-    if (sig === lastSig) return;            // rien n'a bougé → on évite le re-render
-    lastSig = sig;
+    if (drag) return;                       // pas de repositionnement en plein glissement
     render(false);
   }, 140);
 }
@@ -1502,12 +1578,6 @@ function init(){
   // On attend un frame pour que la mise en page CSS soit mesurable
   requestAnimationFrame(() => {
     render(true);
-    lastSig = (() => {
-      const r = boardArea.getBoundingClientRect();
-      return Math.round(r.width) + '|' + Math.round(r.height) + '|' +
-             state.grid + '|' + state.imgURL;
-    })();
-    updateHUD();
   });
 }
 init();
