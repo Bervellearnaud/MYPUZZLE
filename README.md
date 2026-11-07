@@ -16,7 +16,7 @@ Jeu de puzzle interactif **complet et autonome** — un seul fichier `index.html
 | Fonctionnalité | Détail |
 |---|---|
 | 📤 **Import d'image** | « Téléimporter une image » : l'image de l'appareil est redimensionnée (max 1600 px) puis découpée dynamiquement selon la grille |
-| 🎲 **Images intégrées** | 3 ambiances générées aléatoirement (géométrique, coucher de soleil, vagues) — le jeu marche sans aucun fichier externe |
+| 🎲 **11 images intégrées** | Ambiances **générées aléatoirement par canvas** (géométrique, coucher de soleil, vagues, forêt, océan, nuit étoilée, montagnes, aurore boréale, désert, abstrait, ville) + couleurs renouvelées à chaque génération — le jeu marche sans aucun fichier externe |
 | 🎚️ **6 niveaux** | Facile 3×3 · Moyen 4×4 · Difficile 5×5 · Expert 6×6 · Maître 12×12 · Légendaire 36×36 (1 296 pièces) |
 | 🖱️ **Glisser-déposer** | Pointer Events (souris, tactile, stylet) avec aimantation (*snap*) près du bon emplacement |
 | 👆 **Mode clic** | 1ᵉʳ clic = sélection + surlignage de l'emplacement · 2ᵉ clic (pièce ou emplacement) = pose directe |
@@ -42,4 +42,4 @@ Optimisations clés (le 36×36 = 1 296 pièces doit rester fluide) :
 
 ## 🧪 Tests
 
-Deux suites de tests automatisés (jsdom) valident le rendu, le mélange, l'aimantation, le glisser-déposer complet, la victoire, les changements de niveau jusqu'au 36×36 **et les optimisations mémoire/perf** : **52 + 28 assertions, toutes vertes (80/80)**.
+Deux suites de tests automatisés (jsdom) valident le rendu, le mélange, l'aimantation, le glisser-déposer complet, la victoire, les changements de niveau jusqu'au 36×36, **les optimisations mémoire/perf** et **les 11 ambiances de la galerie procédurale** : **57 + 28 assertions, toutes vertes (85/85)**.

@@ -724,15 +724,39 @@ const sfxWin    = () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, i 
 /* ---------------------------------------------------------------------------
    6. IMAGES PROCÉDURALES (image par défaut + "Nouvelle image")
    ---------------------------------------------------------------------------
-   Trois ambiances générées par canvas : géométrique, coucher de soleil, vagues.
-   Aucun fichier externe nécessaire → le jeu fonctionne hors ligne.
+   11 ambiances générées par canvas : géométrique, coucher de soleil, vagues,
+   forêt, océan, nuit étoilée, montagnes, aurore boréale, désert, abstrait,
+   ville. Aucun fichier externe nécessaire → le jeu fonctionne hors ligne.
+   Les couleurs varient aussi au hasard à chaque génération : des dizaines de
+   rendus distincts. makeArt(kind) accepte une ambiance imposée (galerie).
    --------------------------------------------------------------------------- */
-function makeArt(){
+const ART_KINDS = ['geo','sunset','waves','forest','ocean','stars','mountains','aurora','desert','abstract','city'];
+
+const ART_LABELS = {
+  geo:'géométrique', sunset:'coucher de soleil', waves:'vagues', forest:'forêt',
+  ocean:'océan', stars:'nuit étoilée', mountains:'montagnes', aurora:'aurore boréale',
+  desert:'désert', abstract:'abstrait', city:'ville la nuit',
+};
+
+/** Ambiance au hasard en évitant la précédente (pour varier à chaque clic) */
+function randomOtherKind(){
+  const pool = ART_KINDS.filter(k => k !== state.artKind);
+  const list = pool.length ? pool : ART_KINDS;
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+/**
+ * Génère une image d'ambiance sur canvas.
+ * @param {string} [pickKind] — ambiance imposée (ART_KINDS) ; sinon aléatoire
+ * @returns {string} data-URL JPEG
+ */
+function makeArt(pickKind){
   const S = 900;
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
   const x = cv.getContext('2d');
-  const kind = ['geo','sunset','waves'][Math.floor(Math.random() * 3)];
+  const kind = (pickKind && ART_LABELS[pickKind]) ? pickKind : randomOtherKind();
+  state.artKind = kind;
 
   if (kind === 'sunset') {
     /* --- Coucher de soleil --- */
@@ -808,6 +832,329 @@ function makeArt(){
       x.beginPath();
       x.arc(Math.random() * S, Math.random() * S, 2 + Math.random() * 9, 0, Math.PI * 2);
       x.fill();
+    }
+
+  } else if (kind === 'forest') {
+    /* --- Forêt de sapins au lever du jour --- */
+    const sky = x.createLinearGradient(0, 0, 0, S);
+    sky.addColorStop(0, '#0b2733');
+    sky.addColorStop(.5, '#2e6e5e');
+    sky.addColorStop(.78, '#a8e0c3');
+    sky.addColorStop(1, '#e8f5d9');
+    x.fillStyle = sky; x.fillRect(0, 0, S, S);
+
+    // Brume horizontale
+    x.fillStyle = 'rgba(255,255,255,.14)';
+    for (let i = 0; i < 6; i++) x.fillRect(0, S * (.45 + i * .07), S, 10 + Math.random() * 26);
+
+    // Halo du soleil levant
+    const mx = S * (.25 + Math.random() * .5), my = S * .3;
+    const glow = x.createRadialGradient(mx, my, 8, mx, my, 175);
+    glow.addColorStop(0, 'rgba(255,250,220,.95)');
+    glow.addColorStop(1, 'rgba(255,250,220,0)');
+    x.fillStyle = glow; x.fillRect(0, 0, S, S);
+    x.fillStyle = '#fffbe4';
+    x.beginPath(); x.arc(mx, my, 52, 0, Math.PI * 2); x.fill();
+
+    // 3 couches de sapins (silhouettes de plus en plus foncées)
+    const layers = ['#16453a', '#0e3229', '#08231d'];
+    for (let l = 0; l < 3; l++){
+      const baseY = S * (.62 + l * .13);
+      x.fillStyle = layers[l];
+      for (let px = -30; px < S + 30; px += 46 + Math.random() * 36){
+        const h = (70 + l * 40) + Math.random() * (90 + l * 50);
+        const w = h * (.42 + Math.random() * .2);
+        x.beginPath();
+        x.moveTo(px - w / 2, baseY + 20);
+        x.lineTo(px, baseY - h);
+        x.lineTo(px + w / 2, baseY + 20);
+        x.closePath(); x.fill();
+      }
+    }
+    // Sol
+    x.fillStyle = '#061713';
+    x.fillRect(0, S * .88, S, S * .12);
+
+  } else if (kind === 'ocean') {
+    /* --- Océan turquoise sous un soleil bas --- */
+    const sky = x.createLinearGradient(0, 0, 0, S * .55);
+    sky.addColorStop(0, '#ffd9a0');
+    sky.addColorStop(1, '#8ed6e8');
+    x.fillStyle = sky; x.fillRect(0, 0, S, S * .55);
+
+    const sx = S * (.35 + Math.random() * .3), sy = S * .42;
+    const g2 = x.createRadialGradient(sx, sy, 6, sx, sy, 200);
+    g2.addColorStop(0, 'rgba(255,246,214,1)');
+    g2.addColorStop(.3, 'rgba(255,214,130,.8)');
+    g2.addColorStop(1, 'rgba(255,214,130,0)');
+    x.fillStyle = g2; x.fillRect(0, 0, S, S);
+    x.fillStyle = '#fff7d6';
+    x.beginPath(); x.arc(sx, sy, 60, 0, Math.PI * 2); x.fill();
+
+    // Mer dégradée
+    const sea = x.createLinearGradient(0, S * .55, 0, S);
+    sea.addColorStop(0, '#2a9db8');
+    sea.addColorStop(.5, '#17708f');
+    sea.addColorStop(1, '#0b3d57');
+    x.fillStyle = sea; x.fillRect(0, S * .55, S, S * .45);
+
+    // Vagues : traits blancs ondulés, plus marqués vers l'avant
+    for (let i = 0; i < 26; i++){
+      const y = S * .57 + i * (S * .43 / 26);
+      x.strokeStyle = 'rgba(255,255,255,' + (.10 + (i / 26) * .35) + ')';
+      x.lineWidth = 1.5 + i * .1;
+      x.beginPath();
+      for (let px = 0; px <= S; px += 10){
+        const yy = y + Math.sin(px * .02 + i * 1.7) * (3 + i * .25);
+        px === 0 ? x.moveTo(px, yy) : x.lineTo(px, yy);
+      }
+      x.stroke();
+    }
+    // Reflet du soleil sur l'eau
+    x.fillStyle = 'rgba(255,230,160,.5)';
+    for (let i = 0; i < 10; i++){
+      const w2 = 26 + Math.random() * 140;
+      x.fillRect(sx - w2 / 2 + (Math.random() - .5) * 50, S * .58 + i * 26, w2, 5);
+    }
+
+  } else if (kind === 'stars') {
+    /* --- Nuit étoilée avec voie lactée --- */
+    const sky = x.createLinearGradient(0, 0, 0, S);
+    sky.addColorStop(0, '#050514');
+    sky.addColorStop(.55, '#141442');
+    sky.addColorStop(1, '#2a1a55');
+    x.fillStyle = sky; x.fillRect(0, 0, S, S);
+
+    // Voie lactée en diagonale
+    for (let i = 0; i < 320; i++){
+      const t = Math.random();
+      const bx = t * S + (Math.random() - .5) * 170;
+      const by = t * S * .8 + (Math.random() - .5) * 170;
+      x.fillStyle = 'rgba(220,225,255,' + (.03 + Math.random() * .10) + ')';
+      x.beginPath(); x.arc(bx, by, 1 + Math.random() * 2.4, 0, Math.PI * 2); x.fill();
+    }
+    // Étoiles (avec éclat cruciforme pour les plus grosses)
+    for (let i = 0; i < 210; i++){
+      const a = .35 + Math.random() * .65;
+      const r = .7 + Math.random() * 2.1;
+      const ex = Math.random() * S, ey = Math.random() * S;
+      x.fillStyle = 'rgba(255,255,255,' + a + ')';
+      x.beginPath(); x.arc(ex, ey, r, 0, Math.PI * 2); x.fill();
+      if (r > 2.3){
+        x.strokeStyle = 'rgba(255,255,255,' + (a * .7) + ')';
+        x.lineWidth = 1;
+        x.beginPath();
+        x.moveTo(ex - r * 3, ey); x.lineTo(ex + r * 3, ey);
+        x.moveTo(ex, ey - r * 3); x.lineTo(ex, ey + r * 3);
+        x.stroke();
+      }
+    }
+    // Lune pleine : halo + disque + cratères
+    const lx = S * .74, ly = S * .24, lr = 72;
+    const halo = x.createRadialGradient(lx, ly, lr * .5, lx, ly, lr * 2.6);
+    halo.addColorStop(0, 'rgba(246,242,217,.35)');
+    halo.addColorStop(1, 'rgba(246,242,217,0)');
+    x.fillStyle = halo; x.fillRect(0, 0, S, S);
+    x.fillStyle = '#f6f2d9';
+    x.beginPath(); x.arc(lx, ly, lr, 0, Math.PI * 2); x.fill();
+    x.fillStyle = 'rgba(200,195,165,.5)';
+    [[-.3, -.25, .22], [.25, .1, .16], [.05, .35, .12]].forEach(c => {
+      x.beginPath(); x.arc(lx + c[0] * lr, ly + c[1] * lr, c[2] * lr, 0, Math.PI * 2); x.fill();
+    });
+
+  } else if (kind === 'mountains') {
+    /* --- Montagnes enneigées --- */
+    const sky = x.createLinearGradient(0, 0, 0, S * .7);
+    sky.addColorStop(0, '#7fb2e5');
+    sky.addColorStop(.6, '#cfe3f7');
+    sky.addColorStop(1, '#f3e9f5');
+    x.fillStyle = sky; x.fillRect(0, 0, S, S);
+    x.fillStyle = '#fff8e0';
+    x.beginPath(); x.arc(S * .68, S * .2, 56, 0, Math.PI * 2); x.fill();
+
+    // 3 rangées de sommets (lointain → proche) avec casques de neige
+    const rows = [
+      { y:.55, h:.30, col:'#8d9cc4' },
+      { y:.70, h:.34, col:'#5b6a96' },
+      { y:.86, h:.30, col:'#39446b' },
+    ];
+    rows.forEach(rw => {
+      const peaks = [];
+      let px0 = -60;
+      while (px0 < S + 60){
+        const pw = 140 + Math.random() * 190;
+        const ph = S * rw.h * (.5 + Math.random() * .8);
+        peaks.push({ x:px0 + pw / 2, y:S * rw.y - ph, w:pw });
+        px0 += pw * (.8 + Math.random() * .35);
+      }
+      // Silhouette
+      x.fillStyle = rw.col;
+      x.beginPath();
+      x.moveTo(-60, S);
+      x.lineTo(-60, S * rw.y + 30);
+      peaks.forEach((pk, i) => {
+        x.lineTo(pk.x, pk.y);
+        const nx = peaks[i + 1] ? (pk.x + peaks[i + 1].x) / 2 : pk.x + pk.w * .6;
+        x.lineTo(nx, S * rw.y + 30);
+      });
+      x.lineTo(S + 60, S);
+      x.closePath(); x.fill();
+      // Neige au sommet
+      peaks.forEach(pk => {
+        const cw = pk.w * .34;
+        const ch = Math.max(30, (S * rw.y + 30 - pk.y) * .28);
+        x.fillStyle = 'rgba(255,255,255,.92)';
+        x.beginPath();
+        x.moveTo(pk.x, pk.y);
+        x.lineTo(pk.x + cw / 2, pk.y + ch);
+        x.lineTo(pk.x - cw / 2, pk.y + ch);
+        x.closePath(); x.fill();
+      });
+    });
+
+  } else if (kind === 'aurora') {
+    /* --- Aurore boréale sur une crête --- */
+    const sky = x.createLinearGradient(0, 0, 0, S);
+    sky.addColorStop(0, '#020410');
+    sky.addColorStop(.6, '#071433');
+    sky.addColorStop(1, '#0b1e42');
+    x.fillStyle = sky; x.fillRect(0, 0, S, S);
+
+    for (let i = 0; i < 160; i++){
+      x.fillStyle = 'rgba(255,255,255,' + (.2 + Math.random() * .7) + ')';
+      x.beginPath(); x.arc(Math.random() * S, Math.random() * S * .85, .6 + Math.random() * 1.7, 0, Math.PI * 2); x.fill();
+    }
+
+    // Rubans lumineux (composite « screen » pour l'effet de lumière)
+    x.globalCompositeOperation = 'screen';
+    const hues = [140 + Math.random() * 40, 170 + Math.random() * 40, 275 + Math.random() * 45];
+    hues.forEach((h, i) => {
+      x.strokeStyle = 'hsla(' + h + ',90%,60%,' + (.3 + Math.random() * .2) + ')';
+      x.lineWidth = 60 + i * 34;
+      x.lineCap = 'round';
+      x.beginPath();
+      const base = S * (.16 + i * .14);
+      for (let px = -40; px <= S + 40; px += 24){
+        const y = base + Math.sin(px * .008 + i * 2) * 80 + Math.sin(px * .02 + i) * 30;
+        px === -40 ? x.moveTo(px, y) : x.lineTo(px, y);
+      }
+      x.stroke();
+    });
+    x.globalCompositeOperation = 'source-over';
+
+    // Crête de collines noires en contrebas
+    x.fillStyle = '#04070f';
+    x.beginPath();
+    x.moveTo(0, S); x.lineTo(0, S * .86);
+    for (let px = 0; px <= S; px += 40){
+      x.lineTo(px, S * .86 + Math.sin(px * .011) * 26 + Math.random() * 8);
+    }
+    x.lineTo(S, S); x.closePath(); x.fill();
+
+  } else if (kind === 'desert') {
+    /* --- Dunes au coucher du soleil --- */
+    const sky = x.createLinearGradient(0, 0, 0, S * .7);
+    sky.addColorStop(0, '#3b1e5e');
+    sky.addColorStop(.55, '#c65d4a');
+    sky.addColorStop(1, '#ffb36b');
+    x.fillStyle = sky; x.fillRect(0, 0, S, S);
+
+    const sx = S * .5, sy = S * .55;
+    const glow = x.createRadialGradient(sx, sy, 10, sx, sy, 260);
+    glow.addColorStop(0, 'rgba(255,240,190,.95)');
+    glow.addColorStop(.35, 'rgba(255,190,110,.55)');
+    glow.addColorStop(1, 'rgba(255,190,110,0)');
+    x.fillStyle = glow; x.fillRect(0, 0, S, S);
+    x.fillStyle = '#ffe9b8';
+    x.beginPath(); x.arc(sx, sy, 84, 0, Math.PI * 2); x.fill();
+
+    // 4 couches de dunes
+    const dunes = [
+      { y:.66, col:'#e09a55' }, { y:.76, col:'#b46a3c' },
+      { y:.86, col:'#8a4a2e' }, { y:.94, col:'#5e3122' },
+    ];
+    dunes.forEach((d, i) => {
+      x.fillStyle = d.col;
+      x.beginPath();
+      x.moveTo(0, S);
+      x.lineTo(0, S * d.y + 30);
+      x.quadraticCurveTo(S * (.25 + i * .12), S * d.y - (60 - i * 8) - Math.random() * 50,
+                         S * .55, S * d.y + 20);
+      x.quadraticCurveTo(S * .8, S * d.y + 70, S, S * d.y - 20);
+      x.lineTo(S, S);
+      x.closePath(); x.fill();
+    });
+
+  } else if (kind === 'abstract') {
+    /* --- Abstraction : taches de couleur façon mesh --- */
+    const h0 = Math.floor(Math.random() * 360);
+    const base = x.createLinearGradient(0, 0, S, S);
+    base.addColorStop(0, 'hsl(' + h0 + ',60%,88%)');
+    base.addColorStop(1, 'hsl(' + ((h0 + 80) % 360) + ',55%,80%)');
+    x.fillStyle = base; x.fillRect(0, 0, S, S);
+
+    for (let i = 0; i < 9; i++){
+      const hh = (h0 + Math.random() * 240) % 360;
+      const cx2 = Math.random() * S, cy2 = Math.random() * S;
+      const rr = 120 + Math.random() * 300;
+      const blob = x.createRadialGradient(cx2, cy2, 0, cx2, cy2, rr);
+      blob.addColorStop(0, 'hsla(' + hh + ',' + (70 + Math.random() * 25) + '%,' +
+                            (45 + Math.random() * 25) + '%,.75)');
+      blob.addColorStop(1, 'hsla(' + hh + ',80%,60%,0)');
+      x.fillStyle = blob;
+      x.fillRect(0, 0, S, S);
+    }
+    // Cerneaux fins
+    x.strokeStyle = 'rgba(255,255,255,.5)';
+    x.lineWidth = 3;
+    for (let i = 0; i < 5; i++){
+      x.beginPath();
+      x.arc(Math.random() * S, Math.random() * S, 80 + Math.random() * 300, 0, Math.PI * 2);
+      x.stroke();
+    }
+
+  } else if (kind === 'city') {
+    /* --- Skyline nocturne, fenêtres allumées --- */
+    const sky = x.createLinearGradient(0, 0, 0, S);
+    sky.addColorStop(0, '#070b1d');
+    sky.addColorStop(.6, '#182046');
+    sky.addColorStop(1, '#33265c');
+    x.fillStyle = sky; x.fillRect(0, 0, S, S);
+
+    for (let i = 0; i < 110; i++){
+      x.fillStyle = 'rgba(255,255,255,' + (.15 + Math.random() * .6) + ')';
+      x.beginPath(); x.arc(Math.random() * S, Math.random() * S * .5, .5 + Math.random() * 1.5, 0, Math.PI * 2); x.fill();
+    }
+    x.fillStyle = '#f4efcf';
+    x.beginPath(); x.arc(S * .18, S * .18, 44, 0, Math.PI * 2); x.fill();
+
+    // Immeubles + fenêtres
+    const groundY = S * .9;
+    let bx2 = -20;
+    while (bx2 < S + 20){
+      const bw = 46 + Math.random() * 90;
+      const bh = S * (.22 + Math.random() * .45);
+      const top = groundY - bh;
+      x.fillStyle = 'rgb(' + (10 + (Math.random() * 22 | 0)) + ',' +
+                             (14 + (Math.random() * 24 | 0)) + ',' +
+                             (34 + (Math.random() * 40 | 0)) + ')';
+      x.fillRect(bx2, top, bw, groundY - top + 40);
+      for (let wy = top + 10; wy < groundY - 14; wy += 18){
+        for (let wx = bx2 + 7; wx < bx2 + bw - 9; wx += 15){
+          if (Math.random() < .42){
+            x.fillStyle = Math.random() < .8 ? 'rgba(255,214,120,.9)' : 'rgba(150,220,255,.85)';
+            x.fillRect(wx, wy, 7, 9);
+          }
+        }
+      }
+      bx2 += bw + 4 + Math.random() * 14;
+    }
+    // Sol + reflets au sol
+    x.fillStyle = '#05060f';
+    x.fillRect(0, groundY, S, S - groundY);
+    x.fillStyle = 'rgba(255,214,120,.10)';
+    for (let i = 0; i < 18; i++){
+      x.fillRect(Math.random() * S, groundY + 6 + Math.random() * 40, 8 + Math.random() * 46, 3);
     }
 
   } else {
@@ -1518,8 +1865,8 @@ fileInput.addEventListener('change', async () => {
 $('#btnShuffle').addEventListener('click', () => { newGame(); toast('Pièces remélangées 🔀'); });
 
 $('#btnNewImg').addEventListener('click', () => {
-  state.imgURL = makeArt();
-  toast('Nouvelle image 🎲');
+  state.imgURL = makeArt();               // ambiance différente de la précédente
+  toast('Nouvelle image 🎲 — ' + (ART_LABELS[state.artKind] || ''));
   newGame();
 });
 
@@ -1590,6 +1937,10 @@ window.__puzzle = {
   render,
   place(id){ doPlace(state.pieces[id]); },
   snapRadius,
+  // Galerie procédurale (volet A) — utile pour tests et futur sélecteur
+  art: makeArt,
+  ART_KINDS,
+  ART_LABELS,
 };
 </script>
 </body>
