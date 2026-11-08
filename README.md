@@ -1,5 +1,7 @@
 # 🧩 Puzzle Studio
 
+![Puzzle Studio — bannière](assets/hero-banner.png)
+
 Jeu de puzzle interactif **complet et autonome** — un seul fichier `index.html` (HTML + CSS + JavaScript), zéro dépendance, fonctionne hors ligne.
 
 ## 🚀 Lancer le jeu
@@ -43,3 +45,16 @@ Optimisations clés (le 36×36 = 1 296 pièces doit rester fluide) :
 ## 🧪 Tests
 
 Deux suites de tests automatisés (jsdom) valident le rendu, le mélange, l'aimantation, le glisser-déposer complet, la victoire, les changements de niveau jusqu'au 36×36, **les optimisations mémoire/perf** et **les 11 ambiances de la galerie procédurale** : **57 + 28 assertions, toutes vertes (85/85)**.
+
+## 🎨 Visuels du projet
+
+Kit graphique du jeu, dans la charte de l'interface (fond nuit `#0a0e1a`, accents violet `#7c5cff` · cyan `#22d3ee` · rose `#f472b6`) — dossier `assets/` :
+
+| Fichier | Format | Usage recommandé |
+|---|---|---|
+| [`assets/hero-banner.png`](assets/hero-banner.png) | Bannière large | En-tête du README (déjà intégrée) · header de site / store |
+| [`assets/social-card.png`](assets/social-card.png) | Carte paysage | **Aperçu de partage** (Open Graph / X / Discord) : à définir dans *Réglages du dépôt → General → Social preview* sur GitHub |
+| [`assets/logo.png`](assets/logo.png) | Carré | **Avatar du dépôt** GitHub · favicon · icône d'application |
+| [`assets/devices.png`](assets/devices.png) | Showcase | Section « Responsive » du README · présentation multi-écrans (ordinateur, tablette, mobile) |
+
+> 💡 Aucun texte n'est incrusté dans les images : vous pouvez librement superposer votre titre avec votre police préférée.
