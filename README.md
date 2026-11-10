@@ -58,3 +58,17 @@ Kit graphique du jeu, dans la charte de l'interface (fond nuit `#0a0e1a`, accent
 | [`assets/devices.png`](assets/devices.png) | Showcase | Section « Responsive » du README · présentation multi-écrans (ordinateur, tablette, mobile) |
 
 > 💡 Aucun texte n'est incrusté dans les images : vous pouvez librement superposer votre titre avec votre police préférée.
+
+### 📱 Captures d'écran (jeu en ligne)
+
+Interface réelle de [mypuzzle.netlify.app](https://mypuzzle.netlify.app), même partie affichée sur les deux écrans : niveau **Facile 3×3**, image **« Nuit étoilée »**, aucune pièce placée (**0/9**, chrono à zéro).
+
+**🖥️ Ordinateur**
+
+<img src="assets/screenshot-pc.png" alt="Capture ordinateur — Puzzle Studio sur mypuzzle.netlify.app" width="720">
+
+**📲 Mobile — viewport 390 × 844**
+
+<img src="assets/screenshot-mobile.png" alt="Capture mobile — Puzzle Studio, responsive 390 × 844" width="300">
+
+> Sur mobile, les rangées d'actions et de niveaux défilent horizontalement (elles sont volontairement rognées à droite), le plateau passe sous la barre d'outils et les pièces se rangent dans la réserve « Pièces à placer ».
