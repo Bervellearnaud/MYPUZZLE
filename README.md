@@ -56,6 +56,7 @@ Kit graphique du jeu, dans la charte de l'interface (fond nuit `#0a0e1a`, accent
 | [`assets/social-card.png`](assets/social-card.png) | Carte paysage | **Aperçu de partage** (Open Graph / X / Discord) : à définir dans *Réglages du dépôt → General → Social preview* sur GitHub |
 | [`assets/logo.png`](assets/logo.png) | Carré | **Avatar du dépôt** GitHub · favicon · icône d'application |
 | [`assets/devices.png`](assets/devices.png) | Showcase | Section « Responsive » du README · présentation multi-écrans (ordinateur, tablette, mobile) |
+| [`assets/mockup-multiscreen.png`](assets/mockup-multiscreen.png) | Mockup multi-écrans | Présentation produit : **desktop (4×4 en cours) + mobile (3×3)** dans des cadres appareils, sur fond de charte |
 
 > 💡 Aucun texte n'est incrusté dans les images : vous pouvez librement superposer votre titre avec votre police préférée.
 
