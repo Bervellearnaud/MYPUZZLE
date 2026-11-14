@@ -276,6 +276,21 @@ body{
   transform:rotate(var(--rot,0deg)) scale(1.07);
   box-shadow:0 16px 32px rgba(32,38,79,.42), inset 0 0 0 1px rgba(255,255,255,.55);
 }
+/* Dépôt raté : tremblement sec + liseré rose (feedback d'erreur) */
+.piece .skin.error{
+  animation:skinError .5s ease;
+  box-shadow:0 0 0 3px rgba(251,113,133,.95), 0 2px 6px rgba(32,38,79,.38);
+}
+@keyframes skinError{
+  0%  { transform:rotate(var(--rot,0deg)) translateX(0); }
+  15% { transform:rotate(var(--rot,0deg)) translateX(-7px); }
+  30% { transform:rotate(var(--rot,0deg)) translateX(7px); }
+  45% { transform:rotate(var(--rot,0deg)) translateX(-5px); }
+  60% { transform:rotate(var(--rot,0deg)) translateX(5px); }
+  75% { transform:rotate(var(--rot,0deg)) translateX(-3px); }
+  90% { transform:rotate(var(--rot,0deg)) translateX(2px); }
+  100%{ transform:rotate(var(--rot,0deg)) translateX(0); }
+}
 /* Grilles denses (≥ 100 pièces : 12×12, 36×36) : plus d'ombres par pièce.
    1296 box-shadow repeintes à chaque scroll = lag assuré. Le contour suffit. */
 #playArea.dense .piece .skin,
@@ -330,8 +345,38 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
   display:flex; flex-direction:column; gap:4px;
 }
 .modal-stats span{ font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; }
-.modal-stats b{ font-size:1.05rem; font-variant-numeric:tabular-nums; }
+/* Score de victoire : chiffres accentués bien visibles */
+.modal-stats b{
+  font-size:1.22rem; font-weight:800; font-variant-numeric:tabular-nums;
+  background:linear-gradient(90deg,var(--accent),var(--accent3));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
 .modal-actions{ display:flex; gap:9px; justify-content:center; flex-wrap:wrap; }
+
+/* ---- Sélection de niveau au démarrage ---- */
+.modal-start{ width:min(560px,94vw); }
+.lvl-choices{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+}
+.lvl-choice{
+  appearance:none; -webkit-appearance:none;
+  border:1px solid var(--ink-soft);
+  background:rgba(255,255,255,.88);
+  color:var(--text);
+  border-radius:16px; padding:15px 8px; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; gap:3px;
+  font:inherit; font-size:.95rem; font-weight:800;
+  transition:transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+}
+.lvl-choice small{ color:var(--muted); font-weight:700; font-size:.78rem; }
+.lvl-choice:hover{
+  background:#fff; border-color:transparent; transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(32,38,79,.16), 0 0 0 2px rgba(124,92,255,.35);
+}
+.lvl-choice:active{ transform:scale(.97); }
+.lvl-choice:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+@media (max-width:520px){ .lvl-choices{ grid-template-columns:repeat(2,1fr); } }
+@media (pointer:coarse){ .lvl-choice{ min-height:64px; justify-content:center; } }
 
 /* Aperçu plein écran de l'image cible */
 #imgOverlay{ cursor:zoom-out; background:rgba(6,9,20,.86); }
@@ -456,6 +501,7 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
   .modal{ padding:18px 16px; }
   .modal-emoji{ font-size:2.4rem; }
   .modal h2{ font-size:1.2rem; }
+  .lvl-choice{ padding:11px 8px; font-size:.88rem; }
 }
 
 /* Accessibilité : réduire les animations */
@@ -539,6 +585,16 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
       <button class="btn" id="btnWinImport">📤 Importer une image</button>
       <button class="btn" id="btnCloseWin">Fermer</button>
     </div>
+  </div>
+</div>
+
+<!-- ===================== SÉLECTION DE NIVEAU AU DÉMARRAGE ===================== -->
+<div class="overlay" id="startOverlay">
+  <div class="modal modal-start" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+    <div class="modal-emoji">🎯</div>
+    <h2 id="startTitle">Choisissez votre niveau</h2>
+    <p class="modal-sub">De Facile à Légendaire — vous pourrez le changer à tout moment.</p>
+    <div class="lvl-choices" id="lvlChoices"><!-- boutons générés en JavaScript --></div>
   </div>
 </div>
 
@@ -1730,7 +1786,17 @@ function onDragUp(){
   const dist = Math.hypot(r.left + state.ps / 2 - (sr.left + sr.width / 2),
                           r.top  + state.ps / 2 - (sr.top  + sr.height / 2));
   if (dist <= d.snapR) doPlace(p);
-  else doReturn(p);
+  else { doReturn(p); flagError(p); }   // dépôt raté → tremblement + liseré rose
+}
+
+/** Feedback d'erreur : la pièce tremble et se surligne en rose (dépôt raté). */
+function flagError(piece){
+  if (!piece || !piece.skin) return;
+  const sk = piece.skin;
+  sk.classList.remove('error');
+  void sk.offsetWidth;                   // relance l'animation si déjà en cours
+  sk.classList.add('error');
+  setTimeout(() => sk.classList.remove('error'), 700);
 }
 
 /** Annule proprement un glissement (re-rendu, changement de fenêtre…) */
@@ -1882,6 +1948,20 @@ $('#btnPreview').addEventListener('click', () => {
 });
 imgOverlay.addEventListener('click', () => hideOverlay(imgOverlay));
 
+/* --- Sélecteur de niveau affiché au démarrage du jeu --- */
+const startOverlay = $('#startOverlay');
+LEVELS.forEach(lv => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'lvl-choice';
+  b.innerHTML = '<span>' + lv.label + '</span><small>' + lv.grid + ' × ' + lv.grid + '</small>';
+  b.addEventListener('click', () => {
+    setLevel(lv.id);                     // applique le niveau + nouvelle partie
+    hideOverlay(startOverlay);
+  });
+  $('#lvlChoices').appendChild(b);
+});
+
 $('#btnSound').addEventListener('click', (e) => {
   soundOn = !soundOn;
   e.currentTarget.textContent = soundOn ? '🔊' : '🔇';
@@ -1931,6 +2011,8 @@ function init(){
   // On attend un frame pour que la mise en page CSS soit mesurable
   requestAnimationFrame(() => {
     render(true);
+    // Fenêtre de sélection de niveau au début de la partie
+    setTimeout(() => showOverlay($('#startOverlay')), 420);
   });
 }
 init();
