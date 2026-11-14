@@ -117,6 +117,18 @@ body{
 .btn-primary:hover{ box-shadow:0 9px 24px rgba(124,92,255,.5); background:linear-gradient(135deg,#8b6dff 0%,#3adcf5 130%); }
 .btn-icon{ padding:9px 11px; font-size:1rem; }
 
+/* Abandon : hover cramoisi, état « armé » en dégradé rose */
+.btn-abandon{ color:#e11d48; }
+.btn-abandon:hover{
+  background:rgba(244,63,94,.09); border-color:rgba(244,63,94,.40);
+  box-shadow:0 6px 16px rgba(244,63,94,.15);
+}
+.btn-abandon.armed{
+  background:linear-gradient(135deg,#e11d48,#f472b6);
+  border-color:transparent; color:#fff;
+  box-shadow:0 6px 18px rgba(225,29,72,.35);
+}
+
 /* Groupe de niveaux */
 .levels{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 .lvl{
@@ -290,6 +302,18 @@ body{
   75% { transform:rotate(var(--rot,0deg)) translateX(-3px); }
   90% { transform:rotate(var(--rot,0deg)) translateX(2px); }
   100%{ transform:rotate(var(--rot,0deg)) translateX(0); }
+}
+/* Échec final (abandon) : les tuiles s'élèvent en fondu vers le haut */
+.piece.flying{ pointer-events:none; }
+.piece.flying .skin{
+  animation:tileFly .85s cubic-bezier(.35,.7,.4,1) forwards;
+  animation-delay:var(--fly-delay,0ms);
+}
+@keyframes tileFly{
+  0%  { transform:rotate(var(--rot,0deg)) translate(0,0); opacity:1; }
+  100%{ transform:rotate(calc(var(--rot,0deg) + var(--fly-rot,8deg)))
+               translate(var(--fly-x,20px),-70vh);
+        opacity:0; }
 }
 /* Grilles denses (≥ 100 pièces : 12×12, 36×36) : plus d'ombres par pièce.
    1296 box-shadow repeintes à chaque scroll = lag assuré. Le contour suffit. */
@@ -539,6 +563,7 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
     <button class="btn" id="btnNewImg" title="Générer une nouvelle image d'ambiance">🎲 Nouvelle image</button>
     <button class="btn btn-icon" id="btnPreview" title="Voir l'image complète" aria-label="Voir l'image complète">👁️</button>
     <button class="btn btn-icon" id="btnSound" title="Activer / couper le son" aria-label="Activer ou couper le son">🔊</button>
+    <button class="btn btn-abandon" id="btnAbandon" title="Abandonner la partie en cours (2 clics pour confirmer)">🏳️ Abandonner</button>
   </div>
   <div class="levels" id="levels" role="group" aria-label="Choix du niveau de difficulté">
     <!-- Boutons de niveaux générés en JavaScript -->
@@ -595,6 +620,24 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
     <h2 id="startTitle">Choisissez votre niveau</h2>
     <p class="modal-sub">De Facile à Légendaire — vous pourrez le changer à tout moment.</p>
     <div class="lvl-choices" id="lvlChoices"><!-- boutons générés en JavaScript --></div>
+  </div>
+</div>
+
+<!-- ===================== ÉCHEC (ABANDON) ===================== -->
+<div class="overlay" id="failOverlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="failTitle">
+    <div class="modal-emoji">💪</div>
+    <h2 id="failTitle">Dommage&nbsp;!</h2>
+    <p class="modal-sub">Vous avez abandonné cette partie — on retente&nbsp;?</p>
+    <div class="modal-stats">
+      <div><span>Temps</span><b id="failTime">00:00</b></div>
+      <div><span>Coups</span><b id="failMoves">0</b></div>
+      <div><span>Niveau</span><b id="failLevel">Facile 3×3</b></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="btnFailReplay">🔄 Recommencer</button>
+      <button class="btn" id="btnFailLevels">🎚️ Changer de niveau</button>
+    </div>
   </div>
 </div>
 
@@ -665,6 +708,7 @@ const progressFill = $('#progressFill');
 
 const fileInput    = $('#fileInput');
 const winOverlay   = $('#winOverlay');
+const failOverlay  = $('#failOverlay');
 const imgOverlay   = $('#imgOverlay');
 const imgFull      = $('#imgFull');
 
@@ -782,6 +826,7 @@ const sfxPlace  = () => { tone(740, 0, .09); tone(988, .05, .11); };
 const sfxReturn = () => tone(300, 0, .09, .08, 'sine');
 const sfxTick   = () => tone(1180, 0, .05, .06, 'sine');
 const sfxWin    = () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, i * .13, .32, .13));
+const sfxFail   = () => [440, 349, 261].forEach((f, i) => tone(f, i * .13, .3, .10, 'sine'));
 
 /* ---------------------------------------------------------------------------
    6. IMAGES PROCÉDURALES (image par défaut + "Nouvelle image")
@@ -1879,12 +1924,47 @@ function launchConfetti(){
 function showOverlay(el){ el.classList.add('open'); }
 function hideOverlay(el){ el.classList.remove('open'); }
 
+/* --------------------------------------------------------------------------- */
+/*  ÉCHEC FINAL (abandon)                                                       */
+/* --------------------------------------------------------------------------- */
+
+/** Fige la partie comme une défaite, lance l'animation puis la modale. */
+function doFail(){
+  if (state.won) return;                 // déjà gagné ou déjà en échec
+  state.won = true;                      // mêmes gardes que la victoire : plus de drag, chrono arrêté
+  state.elapsedMs = elapsed();
+  state.running = false;
+  deselect();
+  updateHUD();
+  sfxFail();
+  flyAway();                             // animation E : le puzzle s'envole
+  $('#failTime').textContent  = fmtTime(state.elapsedMs);
+  $('#failMoves').textContent = state.moves;
+  $('#failLevel').textContent = currentLevelLabel();
+  setTimeout(() => showOverlay(failOverlay), 950);   // la modale arrive en fin de vol
+}
+
+/** Animation E : toutes les tuiles montent en se décalant, en tournant et en s'effaçant. */
+function flyAway(){
+  state.pieces.forEach((p, i) => {
+    const el = p.el;
+    if (!el) return;
+    el.classList.remove('flying');
+    el.style.setProperty('--fly-delay', ((i % 12) * 45) + 'ms');
+    el.style.setProperty('--fly-x',     (Math.random() * 80 - 40).toFixed(1) + 'px');
+    el.style.setProperty('--fly-rot',   (Math.random() * 20 - 10).toFixed(1) + 'deg');
+    el.classList.add('flying');
+  });
+}
+
 /* ---------------------------------------------------------------------------
    15. PARTIE / RECOMMANDER
    --------------------------------------------------------------------------- */
 function newGame(){
   deselect();
   hideOverlay(winOverlay);
+  hideOverlay(failOverlay);
+  state.pieces.forEach(p => { if (p.el) p.el.classList.remove('flying'); });  // remet les tuiles si échec
   render(true);
   updateHUD();
 }
@@ -1970,6 +2050,35 @@ $('#btnSound').addEventListener('click', (e) => {
 
 /* --- Modale de victoire --- */
 $('#btnReplay').addEventListener('click', () => { newGame(); toast('Bonne chance ! 🍀'); });
+
+/* --- Échec : bouton « Abandonner » (1ᵉʳ clic arme, 2ᵉ clic confirme) --- */
+const btnAbandon  = $('#btnAbandon');
+const abandonHTML = btnAbandon.innerHTML;
+let abandonTimer  = 0;
+function disarmAbandon(){
+  clearTimeout(abandonTimer);
+  abandonTimer = 0;
+  btnAbandon.classList.remove('armed');
+  btnAbandon.innerHTML = abandonHTML;
+}
+btnAbandon.addEventListener('click', () => {
+  if (state.won) return;                                  // partie déjà finie
+  if (!abandonTimer){
+    btnAbandon.classList.add('armed');
+    btnAbandon.innerHTML = '🏳️ Confirmer l’abandon ?';
+    abandonTimer = setTimeout(disarmAbandon, 3500);       // se réarme tout seul
+    return;
+  }
+  disarmAbandon();
+  doFail();
+});
+
+/* --- Modale d'échec : Recommencer / Changer de niveau --- */
+$('#btnFailReplay').addEventListener('click', () => { newGame(); toast('On recommence ! 🍀'); });
+$('#btnFailLevels').addEventListener('click', () => {
+  hideOverlay(failOverlay);
+  showOverlay($('#startOverlay'));                        // réutilise le sélecteur du démarrage
+});
 $('#btnCloseWin').addEventListener('click', () => hideOverlay(winOverlay));
 
 /* --- Clavier : Échap ferme les surcouches --- */
