@@ -11,14 +11,18 @@
    1. DESIGN SYSTEM & VARIABLES
    ============================================================ */
 :root{
-  --bg:#0a0e1a;
-  --text:#e9edfb;
-  --muted:#96a2c4;
+  /* Thème clair lumineux : gaieté sans enfantillage.
+     Surfaces blanches laiteuses, texte indigo profond, mêmes accents. */
+  --bg:#f2f4fd;
+  --text:#20264f;
+  --muted:#5c6598;
   --accent:#7c5cff;          /* violet principal   */
   --accent2:#22d3ee;         /* cyan (indices)     */
   --accent3:#f472b6;         /* rose (accents)     */
-  --glass:rgba(255,255,255,.06);
-  --glass-border:rgba(255,255,255,.10);
+  --glass:rgba(255,255,255,.66);
+  --glass-border:rgba(32,38,79,.10);
+  --ink-soft:rgba(32,38,79,.10);   /* filets & séparations sur clair */
+  --ink-softer:rgba(32,38,79,.05); /* remplissages discrets          */
   --radius:16px;
   --tray-basis:340px;        /* largeur du plateau de réserves (modifiable en JS) */
 }
@@ -30,12 +34,13 @@ html,body{ margin:0; padding:0; height:100%; }
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
   color:var(--text);
-  /* Fond dégradé multicouche */
+  /* Fond dégradé multicouche — clair, solaire, coloré mais soutenu */
   background:
-    radial-gradient(1200px 700px at 15% -10%, rgba(124,92,255,.28), transparent 60%),
-    radial-gradient(1000px 600px at 110% 10%, rgba(34,211,238,.18), transparent 55%),
-    radial-gradient(900px 700px at 50% 130%, rgba(244,114,182,.16), transparent 60%),
-    var(--bg);
+    radial-gradient(1100px 720px at 12% -12%, rgba(139,109,255,.36), transparent 62%),
+    radial-gradient(950px 640px at 112% 6%,  rgba(34,211,238,.30), transparent 58%),
+    radial-gradient(1050px 760px at 52% 138%, rgba(244,114,182,.28), transparent 62%),
+    radial-gradient(760px 480px at 74% 58%,  rgba(251,191,36,.16), transparent 62%),
+    linear-gradient(180deg,#f5f6fe 0%,#eef1fc 48%,#f5f0ff 100%);
   height:100vh;
   height:100dvh;
   display:flex;
@@ -64,7 +69,7 @@ body{
 }
 .brand-emoji{ font-size:1.5rem; filter:drop-shadow(0 3px 8px rgba(124,92,255,.6)); }
 .grad{
-  background:linear-gradient(90deg,#a78bfa 0%,#22d3ee 50%,#f472b6 100%);
+  background:linear-gradient(90deg,#7c5cff 0%,#06b6d4 50%,#ec4899 100%);
   -webkit-background-clip:text; background-clip:text; color:transparent;
 }
 .stats{ display:flex; gap:8px; flex-wrap:wrap; }
@@ -76,7 +81,7 @@ body{
   font-variant-numeric:tabular-nums;         /* chiffres alignés */
   white-space:nowrap;
 }
-.chip b{ font-weight:800; color:#fff; }
+.chip b{ font-weight:800; color:var(--text); }
 
 /* ============================================================
    3. BARRE D'OUTILS (actions + niveaux)
@@ -92,8 +97,8 @@ body{
 
 .btn{
   appearance:none; -webkit-appearance:none;
-  border:1px solid rgba(255,255,255,.15);
-  background:rgba(255,255,255,.07);
+  border:1px solid var(--ink-soft);
+  background:rgba(255,255,255,.82);
   color:var(--text);
   padding:9px 14px; border-radius:12px;
   font:inherit; font-size:.87rem; font-weight:600;
@@ -101,9 +106,9 @@ body{
   display:inline-flex; align-items:center; gap:7px;
   transition:background .18s ease, transform .18s ease, box-shadow .18s ease, border-color .18s ease;
 }
-.btn:hover{ background:rgba(255,255,255,.14); transform:translateY(-1px); }
+.btn:hover{ background:#fff; transform:translateY(-1px); box-shadow:0 6px 16px rgba(32,38,79,.14); }
 .btn:active{ transform:scale(.97); }
-.btn:focus-visible{ outline:2px solid var(--accent2); outline-offset:2px; }
+.btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 .btn-primary{
   background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 130%);
   border-color:transparent; color:#fff;
@@ -116,14 +121,14 @@ body{
 .levels{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
 .lvl{
   appearance:none; -webkit-appearance:none;
-  border:1px solid rgba(255,255,255,.14);
-  background:rgba(255,255,255,.05); color:var(--muted);
+  border:1px solid var(--ink-soft);
+  background:rgba(255,255,255,.78); color:var(--muted);
   padding:8px 12px; border-radius:999px;
   font:inherit; font-size:.82rem; font-weight:700;
   cursor:pointer; white-space:nowrap;
   transition:.18s ease;
 }
-.lvl:hover{ color:var(--text); background:rgba(255,255,255,.12); transform:translateY(-1px); }
+.lvl:hover{ color:var(--text); background:#fff; transform:translateY(-1px); box-shadow:0 5px 14px rgba(32,38,79,.12); }
 .lvl.active{
   background:linear-gradient(135deg,var(--accent),var(--accent3));
   border-color:transparent; color:#fff;
@@ -133,8 +138,8 @@ body{
 /* Barre de progression */
 .progress{
   flex:0 0 auto; height:6px; border-radius:99px;
-  background:rgba(255,255,255,.07); overflow:hidden;
-  box-shadow:inset 0 1px 3px rgba(0,0,0,.35);
+  background:rgba(32,38,79,.10); overflow:hidden;
+  box-shadow:inset 0 1px 3px rgba(32,38,79,.16);
 }
 #progressFill{
   height:100%; width:0%;
@@ -160,11 +165,11 @@ body{
 #board{
   position:relative;
   border-radius:18px;
-  background:linear-gradient(160deg, rgba(22,28,56,.96), rgba(10,14,28,.98));
+  background:linear-gradient(160deg, #ffffff, #edf0fc);
   box-shadow:
-    0 24px 60px rgba(0,0,0,.55),
-    inset 0 0 0 1px rgba(255,255,255,.10),
-    inset 0 0 90px rgba(0,0,0,.4);
+    0 24px 60px rgba(32,38,79,.20),
+    0 4px 14px rgba(32,38,79,.10),
+    inset 0 0 0 1px rgba(255,255,255,.9);
 }
 /* Grille d'emplacements vides */
 #slots{
@@ -172,8 +177,8 @@ body{
   display:grid; grid-template-columns:repeat(3,1fr);
 }
 .slot{
-  border:1px solid rgba(255,255,255,.09);
-  background:rgba(255,255,255,.035);
+  border:1px solid rgba(32,38,79,.10);
+  background:rgba(32,38,79,.04);
   transition:background .15s ease, box-shadow .15s ease;
 }
 /* Indice : emplacement surligné */
@@ -202,7 +207,7 @@ body{
   padding:10px 14px;
   font-size:.78rem; font-weight:800; letter-spacing:.7px; text-transform:uppercase;
   color:var(--muted);
-  border-bottom:1px solid rgba(255,255,255,.08);
+  border-bottom:1px solid var(--ink-soft);
 }
 .badge{
   background:linear-gradient(135deg,var(--accent),var(--accent3));
@@ -250,10 +255,11 @@ body{
   background-image:var(--puzzle-img,none);
   background-repeat:no-repeat;
   border-radius:3px;
-  /* Contour léger : bien moins cher à peindre qu'une ombre portée */
-  outline:1px solid rgba(255,255,255,.16);
+  /* Contour encre : définit les tuiles sur fond clair (moins cher à peindre
+     qu'une ombre portée) */
+  outline:1px solid rgba(25,30,70,.22);
   outline-offset:-1px;
-  box-shadow:0 2px 6px rgba(0,0,0,.45);
+  box-shadow:0 2px 6px rgba(32,38,79,.38);
   transform:rotate(var(--rot,0deg));
   transition:transform .35s cubic-bezier(.2,.85,.25,1.04), box-shadow .2s ease, filter .2s ease;
 }
@@ -261,14 +267,14 @@ body{
   .piece:not(.dragging):not(.is-placed):hover .skin{ filter:brightness(1.1); }
 }
 .piece.selected .skin{
-  box-shadow:0 0 0 2px var(--accent2), 0 0 20px rgba(34,211,238,.75), 0 2px 6px rgba(0,0,0,.45);
+  box-shadow:0 0 0 2px var(--accent2), 0 0 20px rgba(34,211,238,.75), 0 2px 6px rgba(32,38,79,.38);
 }
 .piece.is-placed .skin{
-  box-shadow:0 1px 3px rgba(0,0,0,.3);
+  box-shadow:0 1px 3px rgba(32,38,79,.28);
 }
 .piece.dragging .skin{
   transform:rotate(var(--rot,0deg)) scale(1.07);
-  box-shadow:0 16px 32px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.32);
+  box-shadow:0 16px 32px rgba(32,38,79,.42), inset 0 0 0 1px rgba(255,255,255,.55);
 }
 /* Grilles denses (≥ 100 pièces : 12×12, 36×36) : plus d'ombres par pièce.
    1296 box-shadow repeintes à chaque scroll = lag assuré. Le contour suffit. */
@@ -288,7 +294,7 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
 .overlay{
   position:fixed; inset:0; z-index:80;
   display:grid; place-items:center;
-  background:rgba(6,9,20,.74);
+  background:rgba(76,82,146,.42);
   backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   opacity:0; visibility:hidden;
   transition:opacity .28s ease, visibility .28s ease;
@@ -300,12 +306,12 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
   width:min(460px,94vw);
   max-height:92dvh;                   /* ne dépasse jamais l'écran (paysage) */
   overflow-y:auto;
-  background:linear-gradient(160deg, rgba(34,40,74,.96), rgba(16,20,40,.98));
-  border:1px solid rgba(255,255,255,.15);
+  background:linear-gradient(160deg, rgba(255,255,255,.98), rgba(244,246,255,.98));
+  border:1px solid rgba(32,38,79,.12);
   border-radius:24px;
   padding:30px 26px 26px;
   text-align:center;
-  box-shadow:0 34px 90px rgba(0,0,0,.65);
+  box-shadow:0 34px 90px rgba(32,38,79,.34);
   transform:translateY(20px) scale(.95);
   transition:transform .32s cubic-bezier(.2,.9,.3,1.2);
 }
@@ -318,8 +324,8 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
   margin-bottom:20px;
 }
 .modal-stats div{
-  background:rgba(255,255,255,.07);
-  border:1px solid rgba(255,255,255,.1);
+  background:var(--ink-softer);
+  border:1px solid var(--ink-soft);
   border-radius:14px; padding:10px 6px;
   display:flex; flex-direction:column; gap:4px;
 }
@@ -344,12 +350,12 @@ body.is-dragging{ cursor:grabbing; user-select:none; -webkit-user-select:none; }
 .toast{
   position:fixed; left:50%; bottom:26px; z-index:95;
   transform:translate(-50%,24px);
-  background:rgba(21,27,51,.96);
-  border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.97);
+  border:1px solid rgba(32,38,79,.14);
   color:var(--text);
   padding:11px 18px; border-radius:13px;
   font-size:.9rem; font-weight:600;
-  box-shadow:0 14px 40px rgba(0,0,0,.5);
+  box-shadow:0 14px 40px rgba(32,38,79,.28);
   opacity:0; pointer-events:none;
   transition:opacity .3s ease, transform .3s ease;
 }
@@ -1774,7 +1780,7 @@ function launchConfetti(){
   if (!ctx) return;
   cv.width  = window.innerWidth;
   cv.height = window.innerHeight;
-  const colors = ['#7c5cff','#22d3ee','#f472b6','#fbbf24','#34d399','#60a5fa','#ffffff'];
+  const colors = ['#7c5cff','#22d3ee','#f472b6','#fbbf24','#34d399','#60a5fa','#f97316'];
   const parts = Array.from({ length: 150 }, () => ({
     x: Math.random() * cv.width,
     y: -30 - Math.random() * cv.height * .35,
